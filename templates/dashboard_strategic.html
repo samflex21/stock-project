@@ -72,17 +72,17 @@
     <p>This dashboard provides strategic pricing insights to optimize your product pricing strategy. Key metrics include price trends over time, price volatility by category, and comparative pricing across your product portfolio.</p>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-4">
+<div class="row">
+    <div class="col-md-4 mb-3">
         <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">Total Categories</h5>
+                <h5 class="card-title">Categories</h5>
                 <p class="display-4">{{ summary_data|length }}</p>
                 <p class="text-muted">Number of product categories</p>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-4 mb-3">
         <div class="card h-100">
             <div class="card-body">
                 <h5 class="card-title">Price Range</h5>
@@ -91,12 +91,42 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-4 mb-3">
         <div class="card h-100">
             <div class="card-body">
                 <h5 class="card-title">Average Price</h5>
                 <p class="display-4">${{ summary_data[0].AvgPrice }}</p>
                 <p class="text-muted">Average product price</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Most Stable Category</h5>
+                <p class="display-4" id="most-stable-category">Loading...</p>
+                <p class="text-muted">Category with lowest price volatility</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Most Volatile Category</h5>
+                <p class="display-4" id="most-volatile-category">Loading...</p>
+                <p class="text-muted">Category with highest price volatility</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Total Products</h5>
+                <p class="display-4" id="total-products">Loading...</p>
+                <p class="text-muted">Total count of Products in current filter</p>
             </div>
         </div>
     </div>
@@ -388,6 +418,24 @@ function generateRandomColors(count) {
         colors.push(`rgba(${r}, ${g}, ${b}, 0.7)`);
     }
     return colors;
+}
+
+// Calculate standard deviation for volatility metrics
+function calculateStandardDeviation(values) {
+    // Calculate the mean
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+    
+    // Calculate the sum of squared differences from the mean
+    const squaredDiffs = values.map(val => {
+        const diff = val - mean;
+        return diff * diff;
+    });
+    
+    // Calculate the variance
+    const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+    
+    // Calculate the standard deviation
+    return Math.sqrt(variance);
 }
 
 // Price Trend Chart
@@ -1237,6 +1285,8 @@ function createGrowthRateChart(category = 'all', dateRange = '6') {
         showNoDataMessage();
     }
     
+    updateContextCards(category);
+    
     return charts.growthRateChart;
 }
 
@@ -1324,12 +1374,28 @@ function updateCategorySummaryTable(category) {
 
 // Update context cards with filtered data
 function updateContextCards(category) {
+    console.log('updateContextCards called with category:', category);
+    
     // Default values in case we don't have data
     let minPrice = 10, maxPrice = 500, avgPrice = 250;
+    let totalProducts = 0;
+    let mostStableCategory = 'N/A';
+    let mostVolatileCategory = 'N/A';
+    let categoryVolatility = {};
+    
+    // Debug data availability
+    console.log('summaryData available:', summaryData ? true : false);
+    console.log('chartData available:', chartData ? true : false);
+    if (chartData) {
+        console.log('chartData categories:', Object.keys(chartData));
+        for (const cat in chartData) {
+            console.log(`${cat} data points:`, chartData[cat] ? chartData[cat].length : 0);
+        }
+    }
     
     // Try to get real data from summary data if available
     if (summaryData && summaryData.length > 0) {
-        // If filtering by category
+        // Calculate total product count based on the current filter
         if (category !== 'all' && category) {
             // Find the specific category data
             const categoryData = summaryData.find(item => item.CategoryName === category);
@@ -1337,24 +1403,58 @@ function updateContextCards(category) {
                 minPrice = parseFloat(categoryData.MinPrice).toFixed(2);
                 maxPrice = parseFloat(categoryData.MaxPrice).toFixed(2);
                 avgPrice = parseFloat(categoryData.AvgPrice).toFixed(2);
+                totalProducts = parseInt(categoryData.ProductCount);
                 
-                console.log(`Using real data for ${category}: Min: $${minPrice}, Max: $${maxPrice}, Avg: $${avgPrice}`);
+                console.log(`Using real data for ${category}: Min: $${minPrice}, Max: $${maxPrice}, Avg: $${avgPrice}, Products: ${totalProducts}`);
+                
+                // For a single category, we still compute volatility for all categories for comparison
+                if (chartData) {
+                    Object.keys(chartData).forEach(cat => {
+                        if (chartData[cat] && chartData[cat].length >= 2) {
+                            // Calculate price volatility as standard deviation
+                            const prices = chartData[cat].map(point => parseFloat(point.y));
+                            categoryVolatility[cat] = calculateStandardDeviation(prices);
+                        }
+                    });
+                }
             } else {
                 console.log(`No real data found for ${category}, using defaults`);
             }
         } else {
             // Calculate overall min, max and average across all categories
-            minPrice = Math.min(...summaryData.map(item => parseFloat(item.MinPrice)));
-            maxPrice = Math.max(...summaryData.map(item => parseFloat(item.MaxPrice)));
+            minPrice = Math.min(...summaryData.map(item => parseFloat(item.MinPrice))).toFixed(2);
+            maxPrice = Math.max(...summaryData.map(item => parseFloat(item.MaxPrice))).toFixed(2);
             
             // Calculate weighted average based on product count
-            const totalProducts = summaryData.reduce((sum, item) => sum + parseInt(item.ProductCount), 0);
+            totalProducts = summaryData.reduce((sum, item) => sum + parseInt(item.ProductCount), 0);
             const weightedSum = summaryData.reduce((sum, item) => {
                 return sum + (parseFloat(item.AvgPrice) * parseInt(item.ProductCount));
             }, 0);
             avgPrice = totalProducts > 0 ? (weightedSum / totalProducts).toFixed(2) : 250;
             
-            console.log('Using overall real data for all categories');
+            console.log(`Using overall real data for all categories. Total Products: ${totalProducts}`);
+            
+            // Calculate volatility for all categories
+            if (chartData) {
+                Object.keys(chartData).forEach(cat => {
+                    if (chartData[cat] && chartData[cat].length >= 2) {
+                        // Calculate price volatility as standard deviation
+                        const prices = chartData[cat].map(point => parseFloat(point.y));
+                        categoryVolatility[cat] = calculateStandardDeviation(prices);
+                    }
+                });
+            }
+        }
+        
+        // Find most stable and most volatile categories (if we have volatility data)
+        if (Object.keys(categoryVolatility).length > 0) {
+            // Sort categories by volatility
+            const sortedCategories = Object.keys(categoryVolatility).sort((a, b) => categoryVolatility[a] - categoryVolatility[b]);
+            mostStableCategory = sortedCategories[0];
+            mostVolatileCategory = sortedCategories[sortedCategories.length - 1];
+            
+            console.log(`Most stable category: ${mostStableCategory} (${categoryVolatility[mostStableCategory].toFixed(2)})`);
+            console.log(`Most volatile category: ${mostVolatileCategory} (${categoryVolatility[mostVolatileCategory].toFixed(2)})`);
         }
     } else {
         // Fallback to sample data if no real data available
@@ -1364,14 +1464,27 @@ function updateContextCards(category) {
             minPrice = 100;
             maxPrice = 1200;
             avgPrice = 450;
+            totalProducts = 125;
+            mostStableCategory = 'Monitors';
+            mostVolatileCategory = 'Smartphones';
         } else if (category === 'Clothing') {
             minPrice = 20;
             maxPrice = 150;
             avgPrice = 65;
+            totalProducts = 240;
+            mostStableCategory = 'Socks';
+            mostVolatileCategory = 'Designer Shoes';
         } else if (category === 'Home Goods') {
             minPrice = 50;
             maxPrice = 350;
             avgPrice = 180;
+            totalProducts = 180;
+            mostStableCategory = 'Kitchen Utensils';
+            mostVolatileCategory = 'Furniture';
+        } else {
+            totalProducts = 545;
+            mostStableCategory = 'Groceries';
+            mostVolatileCategory = 'Electronics';
         }
     }
     
@@ -1392,6 +1505,34 @@ function updateContextCards(category) {
             avgPriceDisplay.textContent = `$${avgPrice}`;
         }
     }
+    
+    // Ensure all values have defaults if calculation failed
+    if (!mostStableCategory || mostStableCategory === 'N/A' || mostStableCategory === 'undefined') {
+        // If we have chartData but couldn't calculate volatility, just use the first category
+        if (chartData && Object.keys(chartData).length > 0) {
+            mostStableCategory = Object.keys(chartData)[0];
+            console.log('Using fallback for most stable category:', mostStableCategory);
+        } else {
+            mostStableCategory = 'Not available';
+        }
+    }
+    
+    if (!mostVolatileCategory || mostVolatileCategory === 'N/A' || mostVolatileCategory === 'undefined') {
+        // If we have chartData but couldn't calculate volatility, use the last category
+        if (chartData && Object.keys(chartData).length > 0) {
+            mostVolatileCategory = Object.keys(chartData)[Object.keys(chartData).length - 1];
+            console.log('Using fallback for most volatile category:', mostVolatileCategory);
+        } else {
+            mostVolatileCategory = 'Not available';
+        }
+    }
+
+    // Update the new context cards
+    document.getElementById('most-stable-category').textContent = mostStableCategory;
+    document.getElementById('most-volatile-category').textContent = mostVolatileCategory;
+    document.getElementById('total-products').textContent = totalProducts > 0 ? totalProducts.toLocaleString() : 'Not available';
+    
+    console.log('Context cards updated with: Stable =', mostStableCategory, ', Volatile =', mostVolatileCategory, ', Total =', totalProducts);
 }
 
 // Store chart instances to destroy them before recreating
@@ -1411,14 +1552,24 @@ function destroyCharts() {
 
 // Initialize charts and set up event listeners
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - Initializing dashboard...');
+    
     // Initialize charts
     createPriceTrendChart();
     createVolatilityChart();
     createCategoryComparisonChart();
     createGrowthRateChart();
     
+    // Initialize context cards with default 'all' category
+    updateContextCards('all');
+    
+    // Update category summary table
+    updateCategorySummaryTable('all');
+    
     // Set up filter event listener
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
+    
+    console.log('Dashboard initialized with all components');
 });
 </script>
 {% endblock %}
