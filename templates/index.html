@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Integrated Dashboard Solution{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 text-center mb-4">
+        <h1>Integrated Dashboard Solution</h1>
+        <p class="lead">Welcome to the Stock Management and Analysis System</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Strategic Dashboard</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Analyze long-term pricing trends by product category and identify categories with declining or increasing prices.</p>
+                <ul>
+                    <li>Average price trend per category</li>
+                    <li>Price volatility by category</li>
+                    <li>Category summary with pricing statistics</li>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="/dashboard/strategic" class="btn btn-primary w-100">Go to Strategic Dashboard</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">Tactical Dashboard</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Optimize shipment logistics based on stock levels and expiration dates to minimize waste and ensure optimal stock replenishment.</p>
+                <ul>
+                    <li>Products expiring soon</li>
+                    <li>Current stock levels by category</li>
+                    <li>Low stock products requiring attention</li>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="/dashboard/tactical" class="btn btn-success w-100">Go to Tactical Dashboard</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Analytical Dashboard</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Build recommendation systems based on product tags and user ratings to improve product marketing and placement.</p>
+                <ul>
+                    <li>Top-rated products by tag</li>
+                    <li>Popular tags visualization</li>
+                    <li>Rating distribution analysis</li>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="/dashboard/analytical" class="btn btn-info w-100">Go to Analytical Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

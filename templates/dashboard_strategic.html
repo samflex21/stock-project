@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}Strategic Dashboard{% endblock %}
+
+{% block head %}
+<style>
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 30px;
+    }
+    .section-header {
+        background-color: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        padding: 10px 15px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Strategic Dashboard — Pricing Trends</h1>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Filters</h5>
+    </div>
+    <div class="card-body">
+        <form class="row" id="filterForm">
+            <div class="col-md-4 mb-3">
+                <label for="categoryFilter" class="form-label">Product Category</label>
+                <select class="form-select" id="categoryFilter">
+                    <option value="all">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.CategoryName }}">{{ category.CategoryName }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="dateRangeFilter" class="form-label">Date Range</label>
+                <select class="form-select" id="dateRangeFilter">
+                    <option value="6">Last 6 months</option>
+                    <option value="3">Last 3 months</option>
+                    <option value="12">Last 12 months</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3 d-flex align-items-end">
+                <button type="button" class="btn btn-primary" id="applyFilters">Apply Filters</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Section 1: Context -->
+<div class="section-header">
+    <h2>Context</h2>
+    <p>This dashboard provides strategic pricing insights to optimize your product pricing strategy. Key metrics include price trends over time, price volatility by category, and comparative pricing across your product portfolio.</p>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Total Categories</h5>
+                <p class="display-4">{{ summary_data|length }}</p>
+                <p class="text-muted">Number of product categories</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Price Range</h5>
+                <p class="display-4">${{ summary_data[0].MinPrice }} - ${{ summary_data[0].MaxPrice }}</p>
+                <p class="text-muted">Min-Max price in selected category</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Average Price</h5>
+                <p class="display-4">${{ summary_data[0].AvgPrice }}</p>
+                <p class="text-muted">Average product price</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 2: Main Section with 4 Charts -->
+<div class="section-header">
+    <h2>Main Section</h2>
+    <p>Key visualizations to analyze pricing trends, volatility, and category performance.</p>
+</div>
+
+<div class="row">
+    <!-- Chart 1: Average Price Over Time Chart -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Average Price Trend Over Time</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="priceTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 2: Price Volatility Chart -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Price Volatility by Category</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="volatilityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart 3: Category Price Comparison -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Category Price Comparison</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="categoryComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart 4: Price Growth Rate -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Price Growth Rate</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="growthRateChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 3: Deep Dive -->
+<div class="section-header">
+    <h2>Deep Dive</h2>
+    <p>Detailed analysis and insights about pricing strategies and category performance.</p>
+</div>
+
+<div class="row">
+    <!-- Category Summary Table -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Category Price Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Products</th>
+                                <th>Min Price</th>
+                                <th>Max Price</th>
+                                <th>Avg Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in summary_data %}
+                            <tr>
+                                <td>{{ item.CategoryName }}</td>
+                                <td>{{ item.ProductCount }}</td>
+                                <td>${{ item.MinPrice }}</td>
+                                <td>${{ item.MaxPrice }}</td>
+                                <td>${{ item.AvgPrice }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+// Initialize data variables
+let chartData = {};
+let volatilityData = [];
+let summaryData = [];
+
+// Safely parse data from Flask
+(function loadData() {
+    try {
+        chartData = JSON.parse('{{ chart_data|default({})|tojson|safe }}');
+        volatilityData = JSON.parse('{{ volatility_data|default([])|tojson|safe }}');
+        summaryData = JSON.parse('{{ summary_data|default([])|tojson|safe }}');
+        
+        console.log('Chart data loaded:', Object.keys(chartData).length > 0 ? 'Yes' : 'No');
+        console.log('Volatility data loaded:', volatilityData.length);
+        console.log('Summary data loaded:', summaryData.length);
+    } catch (e) {
+        console.error('Error parsing data from Flask:', e);
+        // Initialize with fallback data if parsing fails
+        chartData = {};
+        volatilityData = [];
+        summaryData = [];
+    }
+})();
+
+// Generate random colors for each category
+function generateRandomColors(count) {
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+        const r = Math.floor(Math.random() * 200);
+        const g = Math.floor(Math.random() * 200);
+        const b = Math.floor(Math.random() * 200);
+        colors.push(`rgba(${r}, ${g}, ${b}, 0.7)`);
+    }
+    return colors;
+}
+
+// Price Trend Chart
+function createPriceTrendChart() {
+    const ctx = document.getElementById('priceTrendChart');
+    if (!ctx) {
+        console.error('Price Trend Chart canvas element not found');
+        return;
+    }
+
+    // Create fallback data if no data is available
+    if (Object.keys(chartData).length === 0) {
+        // Sample data for demo purposes
+        chartData = {
+            'Electronics': [
+                {x: '2024-01', y: 250},
+                {x: '2024-02', y: 275},
+                {x: '2024-03', y: 280},
+                {x: '2024-04', y: 290},
+                {x: '2024-05', y: 300},
+                {x: '2024-06', y: 310}
+            ],
+            'Clothing': [
+                {x: '2024-01', y: 75},
+                {x: '2024-02', y: 80},
+                {x: '2024-03', y: 85},
+                {x: '2024-04', y: 90},
+                {x: '2024-05', y: 88},
+                {x: '2024-06', y: 92}
+            ],
+            'Home Goods': [
+                {x: '2024-01', y: 150},
+                {x: '2024-02', y: 155},
+                {x: '2024-03', y: 160},
+                {x: '2024-04', y: 165},
+                {x: '2024-05', y: 170},
+                {x: '2024-06', y: 175}
+            ]
+        };
+        console.log('Using sample data for Price Trend Chart');
+    }
+    
+    const datasets = [];
+    const categoryColors = generateRandomColors(Object.keys(chartData).length);
+    
+    let colorIndex = 0;
+    for (const [category, points] of Object.entries(chartData)) {
+        datasets.push({
+            label: category,
+            data: points,
+            fill: false,
+            borderColor: categoryColors[colorIndex],
+            tension: 0.1
+        });
+        colorIndex++;
+    }
+
+    const chartContext = ctx.getContext('2d');
+    new Chart(chartContext, {
+        type: 'line',
+        data: {
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            parsing: {
+                xAxisKey: 'x',
+                yAxisKey: 'y'
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'month',
+                        tooltipFormat: 'MMM yyyy'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Average Price ($)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': $' + context.parsed.y;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Price Volatility Chart
+function createVolatilityChart() {
+    const ctx = document.getElementById('volatilityChart');
+    if (!ctx) {
+        console.error('Volatility Chart canvas element not found');
+        return;
+    }
+    
+    // Create fallback data if no data is available
+    if (volatilityData.length === 0) {
+        // Sample data for demo purposes
+        volatilityData = [
+            {CategoryName: 'Electronics', PriceRange: 250},
+            {CategoryName: 'Clothing', PriceRange: 120},
+            {CategoryName: 'Home Goods', PriceRange: 180},
+            {CategoryName: 'Sports', PriceRange: 150},
+            {CategoryName: 'Books', PriceRange: 60}
+        ];
+        console.log('Using sample data for Volatility Chart');
+    }
+    
+    const labels = volatilityData.map(item => item.CategoryName);
+    const priceRanges = volatilityData.map(item => item.PriceRange);
+    
+    const chartContext = ctx.getContext('2d');
+    const colors = generateRandomColors(labels.length);
+    
+    new Chart(chartContext, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Price Range ($)',
+                data: priceRanges,
+                backgroundColor: colors,
+                borderColor: colors.map(color => color.replace('0.7', '1')),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Price Range ($)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Category'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Price Range: $' + context.parsed.y;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Category Comparison Chart
+function createCategoryComparisonChart() {
+    const ctx = document.getElementById('categoryComparisonChart');
+    if (!ctx) {
+        console.error('Category Comparison Chart canvas element not found');
+        return;
+    }
+    
+    const chartContext = ctx.getContext('2d');
+    
+    // Sample data for category comparison
+    new Chart(chartContext, {
+        type: 'radar',
+        data: {
+            labels: ['Price', 'Variety', 'Growth', 'Volatility', 'Demand'],
+            datasets: [{
+                label: 'Electronics',
+                data: [85, 70, 90, 60, 75],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgb(54, 162, 235)',
+                pointBackgroundColor: 'rgb(54, 162, 235)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgb(54, 162, 235)'
+            }, {
+                label: 'Clothing',
+                data: [65, 80, 70, 45, 90],
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgb(255, 99, 132)',
+                pointBackgroundColor: 'rgb(255, 99, 132)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgb(255, 99, 132)'
+            }, {
+                label: 'Home Goods',
+                data: [70, 60, 65, 80, 60],
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgb(75, 192, 192)',
+                pointBackgroundColor: 'rgb(75, 192, 192)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgb(75, 192, 192)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            elements: {
+                line: {
+                    borderWidth: 2
+                }
+            }
+        }
+    });
+    
+    console.log('Category Comparison Chart initialized');
+}
+
+// Growth Rate Chart
+function createGrowthRateChart() {
+    const ctx = document.getElementById('growthRateChart');
+    if (!ctx) {
+        console.error('Growth Rate Chart canvas element not found');
+        return;
+    }
+    
+    const chartContext = ctx.getContext('2d');
+    
+    // Sample data for growth rate chart
+    new Chart(chartContext, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Electronics Growth',
+                data: [5, 7, 3, 6, 8, 10],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                borderWidth: 2,
+                fill: true
+            }, {
+                label: 'Clothing Growth',
+                data: [8, 4, 6, 9, 7, 5],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                borderWidth: 2,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Growth Rate (%)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Month'
+                    }
+                }
+            }
+        }
+    });
+    
+    console.log('Growth Rate Chart initialized');
+}
+
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    createPriceTrendChart();
+    createVolatilityChart();
+    createCategoryComparisonChart();
+    createGrowthRateChart();
+});
+</script>
+{% endblock %}
